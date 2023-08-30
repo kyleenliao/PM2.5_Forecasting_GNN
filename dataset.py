@@ -84,8 +84,8 @@ class HazeData(data.Dataset):
     def _calc_mean_std(self):
         self.feature_mean = self.feature.mean(axis=(0,1))
         self.feature_std = self.feature.std(axis=(0,1))
-        self.wind_mean = self.feature_mean[-2:]
-        self.wind_std = self.feature_std[-2:]
+        self.wind_mean = self.feature_mean[7:9] # 7 and 8 index of u and v component_of_wind+950
+        self.wind_std = self.feature_std[7:9] # 7 and 8 index of u and v component_of_wind+950
         self.pm25_mean = self.pm25.mean()
         self.pm25_std = self.pm25.std()
 
