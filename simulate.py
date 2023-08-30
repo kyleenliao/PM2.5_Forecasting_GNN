@@ -2,6 +2,10 @@ from model.PM25_GNN import PM25_GNN
 from model.PM25_GNN_nosub import PM25_GNN_nosub
 from torch.utils.data import DataLoader
 
+import os
+import sys
+proj_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(proj_dir)
 import arrow
 import torch
 from torch import nn
@@ -35,16 +39,13 @@ exp_repeat = config['train']['exp_repeat']
 save_npy = config['experiments']['save_npy']
 criterion = nn.MSELoss()
 
-#train_data = HazeData(graph, hist_len, pred_len, dataset_num, flag='Train')
-#val_data = HazeData(graph, hist_len, pred_len, dataset_num, flag='Val')
 test_data = HazeData(graph, hist_len, pred_len, dataset_num, flag='Test')
 
 in_dim = test_data.feature.shape[-1] + test_data.pm25.shape[-1]
-wind_mean, wind_std = np.asarray([0.73828155, 0.09530409]), np.asarray([1.7566096, 1.8306713])#train_data.wind_mean, train_data.wind_std #np.asarray([8.140178, 202.80536]), np.asarray([4.9338765, 98.1755]) #train_data.wind_mean, train_data.wind_std
-pm25_mean, pm25_std = test_data.pm25_mean, test_data.pm25_std #train_data.pm25_mean, train_data.pm25_std
-feature_mean, feature_std = test_data.feature_mean, test_data.feature_std #train_data.feature_mean, train_data.feature_std
-print(pm25_mean, pm25_std)
-print(test_data.knowair_fp)
+wind_mean_fp, wind_std_fp = os.path.join(proj_dir, 'data/train_wind_mean.npy'), os.path.join(proj_dir, 'data/train_wind_std.npy')
+wind_mean, wind_std = np.load(wind_mean_fp), np.load(wind_std_fp) 
+pm25_mean, pm25_std = test_data.pm25_mean, test_data.pm25_std 
+feature_mean, feature_std = test_data.feature_mean, test_data.feature_std 
 
 def get_metric(predict_epoch, label_epoch):
     haze_threshold = 75
@@ -213,15 +214,10 @@ def get_mean_std(data_list):
 
 def main():
     model = PM25_GNN(hist_len, pred_len, in_dim, city_num, batch_size, device, graph.edge_index, graph.edge_attr, wind_mean, wind_std).cuda()
-    #model.load_state_dict(torch.load("results_pres_fire/240_48/1/PM25_GNN/20230722230549/09/model.pth", map_location=device))
-    model.load_state_dict(torch.load("results_pres_fire/240_48/1/PM25_GNN/20230820162533/09/model.pth", map_location=device))
+    model.load_state_dict(torch.load("model.pth", map_location=device))
     model.eval()
     print(model.eval())
-    print("test", test_data)
-    print(test_data.feature.shape, test_data.pm25.shape, test_data.time_arr.shape)
-    print(device)
     test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 0)
-    print(test_loader)
     test_loss, predict_epoch, label_epoch, time_epoch = test(test_loader, model)
     #test_loss, predict_epoch, label_epoch, time_epoch = test_data_saving(test_loader, model) #test(test_loader, model)
     exp_model_dir = os.path.join("simulate_results", str(arrow.now().format('YYYYMMDDHHmmss')))
