@@ -109,12 +109,8 @@ class HazeData(data.Dataset):
         self._norm(flag)
         self.feature = np.float32(self.feature)
         self.pm25 = np.float32(self.pm25)
-        print(self.feature.shape, self.pm25.shape, self.time_arr.shape)
-        print("preprocessing done")
-
 
     def _replace_pm25(self):
-        print("replace pm25")
         for i in range(self.pm25.shape[0]):
             for w in range(self.feature.shape[1]):
                  timeind = self.time_dict[self.window[w]] # pm25 value of simulation window
@@ -122,25 +118,17 @@ class HazeData(data.Dataset):
                  self.pm25[i, w, :, 0] = self.knowair[timeind, :, -1]
 
     def _recalculate_frp(self):
-        print(self.feature.shape[1], len(self.window))
         assert self.feature.shape[1] == len(self.window)
 
         for i in range(self.feature.shape[0]): # loop for all time
-            print("recalculate", i, arrow.now().format('YYYYMMDDHHmmss'))
             for w in range(self.feature.shape[1]): # loop for window length
                 if self.window[w][:10] not in self.frp_dict.keys():
                     continue
                 for j in range(len(self.siteloc[0])): # loop over locations
                     latsite = self.siteloc[0][j]
                     lonsite = self.siteloc[1][j]
-                    self.feature[i,w,j,9] = 0.0
-                    self.feature[i,w,j,10] = 0.0
-                    self.feature[i,w,j,11] = 0.0
-                    self.feature[i,w,j,12] = 0.0
-                    self.feature[i,w,j,13] = 0.0
-
-                    #pdb.set_trace()
-                    for fire in self.frp_dict[self.window[w][:10]]: # loop over all fires in the simulation window
+                    
+                    for fire in self.frp_dict[self.window[w][:10]]: # loop over all fires in the simulation window 
                         latf = fire[0]
                         lonf = fire[1]
                         frp = fire[2]
