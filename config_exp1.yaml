@@ -1,0 +1,80 @@
+experiments:
+  metero_use: [
+               '100m_u_component_of_wind',
+               '100m_v_component_of_wind',
+               '2m_dewpoint_temperature',
+               '2m_temperature',
+               'boundary_layer_height',
+               'total_precipitation',
+               'surface_pressure',
+               'u_component_of_wind+950',
+               'v_component_of_wind+950',
+               'frp_25km_idw',
+               'frp_50km_idw',
+               'frp_100km_idw',
+               'frp_500km_idw',
+               'numfires',
+               #'interp_flag',
+               'julian_date',
+               'time_of_day',]
+
+  save_npy: True
+  dataset_num: 1
+#  model: MLP
+#  model: LSTM
+#  model: GRU
+#  model: GC_LSTM
+#  model: nodesFC_GRU
+  model: PM25_GNN
+#  model: PM25_GNN_nosub
+
+train:
+  batch_size: 16
+  epochs: 50
+  exp_repeat: 10
+  hist_len: 240
+  pred_len: 48
+  weight_decay: 0.0005
+  early_stop: 10
+  lr: 0.0005
+
+filepath:
+  GPU-Server:
+    knowair_fp: /data/github/Prescribed_Fire_PM2.5_Simulation/dataset_fire_wind_aligned.npy
+    results_dir: /data/github/Prescribed_Fire_PM2.5_Simulation/results
+
+data:
+  metero_var:
+    [
+     '100m_u_component_of_wind',
+     '100m_v_component_of_wind',
+     '2m_dewpoint_temperature',
+     '2m_temperature',
+     'boundary_layer_height',
+     'total_precipitation',
+     'surface_pressure',
+     'u_component_of_wind+950',
+     'v_component_of_wind+950',
+     'frp_25km_idw',
+     'frp_50km_idw',
+     'frp_100km_idw',
+     'frp_500km_idw',
+     'numfires',
+     'interp_flag',
+     'julian_date',
+     'time_of_day',
+    ]
+
+dataset:
+  data_start: [[2017, 1, 1, 1, 0], GMT]
+  data_end: [[2021, 12, 31, 16, 0], GMT]
+  
+  1:
+    train_start: [[2017, 1, 2], GMT]
+    train_end: [[2018, 12, 31], GMT]
+    val_start: [[2020, 1, 1], GMT]
+    val_end: [[2020, 12, 31], GMT]
+    test_start: [[2021, 1, 1], GMT]
+    test_end: [[2021, 5, 31], GMT]
+    sim_window_start: [[2021, 1, 3], GMT] #window length must be equal to histlen + predlen
+    sim_window_end: [[2021, 1, 15], GMT]  #non-inclusive
