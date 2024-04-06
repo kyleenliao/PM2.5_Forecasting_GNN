@@ -6,7 +6,7 @@ from util import config, file_dir
 
 from graph_pres_fires import Graph
 import pdb
-from dataset_pres_elevated_fires import HazeData
+from dataset import HazeData
 
 from model.MLP import MLP
 from model.LSTM import LSTM
