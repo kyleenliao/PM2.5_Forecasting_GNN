@@ -1,11 +1,20 @@
-from model.PM25_GNN import PM25_GNN
-from model.PM25_GNN_nosub import PM25_GNN_nosub
-from torch.utils.data import DataLoader
-
 import os
 import sys
 proj_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(proj_dir)
+from util import config, file_dir
+from graph import Graph
+from dataset_exp1 import HazeData # for Experiment 1
+# from dataset import HazeData # for Experiment 2
+
+from model.MLP import MLP
+from model.LSTM import LSTM
+from model.GRU import GRU
+from model.GC_LSTM import GC_LSTM
+from model.nodesFC_GRU import nodesFC_GRU
+from model.PM25_GNN import PM25_GNN
+from model.PM25_GNN_nosub import PM25_GNN_nosub
+
 import arrow
 import torch
 from torch import nn
@@ -15,7 +24,6 @@ import pickle
 import glob
 import shutil
 import numpy as np
-import pdb
 
 torch.set_num_threads(1)
 use_cuda = torch.cuda.is_available()
@@ -67,26 +75,6 @@ def get_metric(predict_epoch, label_epoch):
     rmse = np.mean(np.sqrt(np.mean(np.square(predict - label), axis=1)))
     return rmse, mae, csi, pod, far
 
-
-def get_exp_info():
-    exp_info =  '============== Train Info ==============\n' + \
-                'Dataset number: %s\n' % dataset_num + \
-                'Model: %s\n' % exp_model + \
-                'Train: %s --> %s\n' % (train_data.start_time, train_data.end_time) + \
-                'Val: %s --> %s\n' % (val_data.start_time, val_data.end_time) + \
-                'Test: %s --> %s\n' % (test_data.start_time, test_data.end_time) + \
-                'City number: %s\n' % city_num + \
-                'Use metero: %s\n' % config['experiments']['metero_use'] + \
-                'batch_size: %s\n' % batch_size + \
-                'epochs: %s\n' % epochs + \
-                'hist_len: %s\n' % hist_len + \
-                'pred_len: %s\n' % pred_len + \
-                'weight_decay: %s\n' % weight_decay + \
-                'early_stop: %s\n' % early_stop + \
-                'lr: %s\n' % lr + \
-                '========================================\n'
-    return exp_info
-
 def get_model():
     if exp_model == 'MLP':
         return MLP(hist_len, pred_len, in_dim)
@@ -136,10 +124,7 @@ def prepare(pm25, feature, time_arr, flag):
 
 def test_data_saving(test_loader, model):
     model.eval()
-    predict_list = []
-    label_list = []
-    time_list = []
-    #feature_list = []
+    predict_list, label_list, time_list = [], [], []
     test_loss = 0
     for batch_idx, data in enumerate(test_loader):
         pm25, feature, time_arr = data
@@ -154,10 +139,8 @@ def test_data_saving(test_loader, model):
 
         pm25_pred = np.concatenate([pm25_hist.cpu().detach().numpy(), pm25_pred.cpu().detach().numpy()], axis=1) * pm25_std + pm25_mean
         pm25_label = pm25 * pm25_std + pm25_mean
-        #feature = feature.cpu().detach().numpy() * feature_std + feature_mean
         predict_list.append(pm25_pred)
         label_list.append(pm25_label)
-        #feature_list.append(feature)
         time_list.append(time_arr.cpu().detach().numpy())
 
     test_loss /= batch_idx + 1
@@ -165,16 +148,12 @@ def test_data_saving(test_loader, model):
     label_epoch = np.concatenate(label_list, axis=0)
     time_epoch = np.concatenate(time_list, axis=0)
     predict_epoch[predict_epoch < 0] = 0
-    #feature_epoch = np.concatenate(feature_list, axis=0)
 
-    return test_loss, predict_epoch, label_epoch, time_epoch#, feature_epoch
+    return test_loss, predict_epoch, label_epoch, time_epoch
 
 def test(test_loader, model):
     model.eval()
-    predict_list = []
-    label_list = []
-    time_list = []
-    feature_list = []
+    predict_list, label_list, time_list = [], [], []
     test_loss = 0
 
     for batch_idx, data in enumerate(test_loader):
@@ -191,42 +170,43 @@ def test(test_loader, model):
 
         pm25_pred_val = np.concatenate([pm25_hist.cpu().detach().numpy(), pm25_pred.cpu().detach().numpy()], axis=1) * pm25_std + pm25_mean
         pm25_label_val = pm25.cpu().detach().numpy() * pm25_std + pm25_mean
-        feature = feature.cpu().detach().numpy() * feature_std + feature_mean
         predict_list.append(pm25_pred_val)
         label_list.append(pm25_label_val)
-        feature_list.append(feature)
         time_list.append(time_arr.cpu().detach().numpy())
-    #print(batch_idx)
     test_loss /= batch_idx + 1
 
     predict_epoch = np.concatenate(predict_list, axis=0)
     label_epoch = np.concatenate(label_list, axis=0)
     time_epoch = np.concatenate(time_list, axis=0)
     predict_epoch[predict_epoch < 0] = 0
-    feature_epoch = np.concatenate(feature_list, axis=0)
 
-    return test_loss, predict_epoch, label_epoch, time_epoch#, feature_epoch
+    return test_loss, predict_epoch, label_epoch, time_epoch
 
 
 def get_mean_std(data_list):
     data = np.asarray(data_list)
     return data.mean(), data.std()
 
+
 def main():
     model = PM25_GNN(hist_len, pred_len, in_dim, city_num, batch_size, device, graph.edge_index, graph.edge_attr, wind_mean, wind_std).cuda()
     model.load_state_dict(torch.load("model.pth", map_location=device))
     model.eval()
     print(model.eval())
-    test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 0)
-    test_loss, predict_epoch, label_epoch, time_epoch = test(test_loader, model)
-    #test_loss, predict_epoch, label_epoch, time_epoch = test_data_saving(test_loader, model) #test(test_loader, model)
+    test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, shuffle=False, drop_last=True, num_workers = 0)
+    
+    # Run this line for Experiment 1
+    test_loss, predict_epoch, label_epoch, time_epoch = test(test_loader, model) 
+    
+    # Run this line for Experiment 2
+    #test_loss, predict_epoch, label_epoch, time_epoch = test_data_saving(test_loader, model) 
+    
     exp_model_dir = os.path.join("simulate_results", str(arrow.now().format('YYYYMMDDHHmmss')))
     if not os.path.exists(exp_model_dir):
         os.makedirs(exp_model_dir)
     np.save(os.path.join(exp_model_dir, 'predict.npy'), predict_epoch)
     np.save(os.path.join(exp_model_dir, 'label.npy'), label_epoch)
     np.save(os.path.join(exp_model_dir, 'time.npy'), time_epoch)
-    #np.save(os.path.join(exp_model_dir, 'feature.npy'), feature_epoch)
     print(exp_model_dir)
 
 if __name__ == '__main__':

@@ -72,7 +72,6 @@ class Graph():
                     altitude = self.alt_dict[(lat[0]/self.factor, lon[0]/self.factor)]
                 self.count.add((lat[0]/self.factor, lon[0]/self.factor))
                 nodes.update({idx: {'city': city, 'altitude': altitude, 'lon': lon[0]/self.factor, 'lat': lat[0]/self.factor}})
-        print(len(self.count))
         return nodes
 
     def _add_node_attr(self):
@@ -174,11 +173,10 @@ class Graph():
                 edge_index.append(self.edge_index[:,i])
                 edge_attr.append(self.edge_attr[i])
 
-        print("Save model")
-        #with open('/data2/kyleen/PM2.5-GNN-main/data/alt_pres_fires.pkl', 'wb') as handle:
+        #with open('data/alt.pkl', 'wb') as handle:
             #pickle.dump(self.alt_dict, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-        #with open('/data2/kyleen/PM2.5-GNN-main/data/alt_pres_fires.pkl', 'rb') as handle:
+        #with open('data/alt.pkl', 'rb') as handle:
             #b = pickle.load(handle)
 
         self.edge_index = np.stack(edge_index, axis=1)

@@ -4,9 +4,9 @@ proj_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(proj_dir)
 from util import config, file_dir
 
-from graph import Graph
+from graph_pres_fires import Graph
 import pdb
-from dataset import HazeData
+from dataset_pres_fires import HazeData
 
 from model.MLP import MLP
 from model.LSTM import LSTM
@@ -16,6 +16,7 @@ from model.nodesFC_GRU import nodesFC_GRU
 from model.PM25_GNN import PM25_GNN
 from model.PM25_GNN_nosub import PM25_GNN_nosub
 
+import pdb
 import arrow
 import torch
 from torch import nn
@@ -55,6 +56,7 @@ test_data = HazeData(graph, hist_len, pred_len, dataset_num, flag='Test')
 in_dim = train_data.feature.shape[-1] + train_data.pm25.shape[-1]
 wind_mean, wind_std = train_data.wind_mean, train_data.wind_std
 pm25_mean, pm25_std = test_data.pm25_mean, test_data.pm25_std
+print("mean ", pm25_mean, "std ", pm25_std)
 
 def get_metric(predict_epoch, label_epoch):
     haze_threshold = 75
@@ -114,10 +116,12 @@ def get_model():
         raise Exception('Wrong model name!')
 
 def prepare(pm25, feature, time_arr, flag):
-    pm25_hist = np.full((pm25.shape[0], hist_len, pm25.shape[1], pm25.shape[2]), -1.0, dtype=np.float)#double)
-    pm25_label = np.full((pm25.shape[0], pred_len, pm25.shape[1], pm25.shape[2]), -1.0, dtype=np.float)#double)
-    feature = np.full((feature.shape[0], hist_len+pred_len, feature.shape[1], feature.shape[2]), -1.0, dtype=np.float)#double)
-    pm = np.full((pm25.shape[0], hist_len+pred_len, pm25.shape[1], pm25.shape[2]), -1.0, dtype=np.float)#double)
+    seq_len_fire = seq_len
+    pm25_hist = np.full((pm25.shape[0], hist_len, pm25.shape[1], pm25.shape[2]), -1.0, dtype=np.float)
+    pm25_label = np.full((pm25.shape[0], pred_len, pm25.shape[1], pm25.shape[2]), -1.0, dtype=np.float)
+    feature = np.full((feature.shape[0], hist_len+pred_len, feature.shape[1], feature.shape[2]), -1.0, dtype=np.float)
+    pm = np.full((pm25.shape[0], hist_len+pred_len, pm25.shape[1], pm25.shape[2]), -1.0, dtype=np.float)
+    frp500 = np.full((pm25.shape[0], seq_len_fire, pm25.shape[1]), -1.0, dtype=np.float)
 
     for i in range(np.asarray(time_arr).shape[0]):
         if flag == "Train":
@@ -126,6 +130,7 @@ def prepare(pm25, feature, time_arr, flag):
             pm25_label[i,:,:,:] = train_data.pm25_full[end-pred_len+1:end+1, :, :]
             feature[i,:,:,:] = train_data.feature_full[end-seq_len+1:end+1, :, :]
             pm[i,:,:,:] = train_data.pm25_full[end-seq_len+1:end+1, :, :]
+            frp500[i,:,:] = train_data.frp500[end-seq_len_fire+1:end+1, :]
         elif flag == "Val":
             end = val_data.time_index[np.asarray(time_arr)[i]]
             pm25_hist[i,:,:,:] = val_data.pm25_full[end-seq_len+1:end-pred_len+1, :, :]
@@ -138,26 +143,39 @@ def prepare(pm25, feature, time_arr, flag):
             pm25_label[i,:,:,:] = test_data.pm25_full[end-pred_len+1:end+1, :, :]
             feature[i,:,:,:] = test_data.feature_full[end-seq_len+1:end+1, :, :]
             pm[i,:,:,:] = test_data.pm25_full[end-seq_len+1:end+1, :, :]
-
+        
+        if flag == "Train":
+            return torch.tensor(pm25_hist, dtype=torch.float), torch.tensor(pm25_label, dtype=torch.float), torch.tensor(feature, dtype=torch.float), pm.astype('float'), frp500.astype('float')
     return torch.tensor(pm25_hist, dtype=torch.float), torch.tensor(pm25_label, dtype=torch.float), torch.tensor(feature, dtype=torch.float), pm.astype('float')
 
 
 def train(train_loader, model, optimizer):
     model.train()
     train_loss = 0
+    count = 0
+    pm25_std_train, pm25_mean_train = train_data.pm25_std, train_data.pm25_mean
     for batch_idx, data in tqdm(enumerate(train_loader)):
         pm25,feature, time_arr = data
-        pm25_hist, pm25_label, feature, pm25 = prepare(pm25, feature, time_arr, "Train")
+        pm25_hist, pm25_label, feature, pm25, fire = prepare(pm25, feature, time_arr, "Train")
         feature = feature.to(device)
         pm25_hist = pm25_hist.to(device)
         pm25_label = pm25_label.to(device)
-        pm25_pred = model(pm25_hist, feature)
-        loss = criterion(pm25_pred, pm25_label)
-        loss.backward()
-        optimizer.step()
-        train_loss += loss.item()
+
+        thresh = 0.15
+        exceed = (fire > thresh).any()
+        
+        if not exceed:                 
+            pm25_pred = model(pm25_hist, feature)
+            loss = criterion(pm25_pred, pm25_label)
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item()
+            count += 1
+
+    print(count)
     train_loss /= batch_idx + 1
     return train_loss
+
 
 def val(val_loader, model):
     model.eval()
@@ -191,7 +209,7 @@ def test(test_loader, model):
 
         loss = criterion(pm25_pred, pm25_label)
         test_loss += loss.item()
-
+        pdb.set_trace()
         pm25_pred = np.concatenate([pm25_hist.cpu().detach().numpy(), pm25_pred.cpu().detach().numpy()], axis=1) * pm25_std + pm25_mean
         pm25_label = pm25 * pm25_std + pm25_mean
         predict_list.append(pm25_pred)
@@ -207,6 +225,11 @@ def test(test_loader, model):
     return test_loss, predict_epoch, label_epoch, time_epoch
 
 
+def get_mean_std(data_list):
+    data = np.asarray(data_list)
+    return data.mean(), data.std()
+
+
 def main():
     exp_info = get_exp_info()
     print(exp_info)
@@ -217,7 +240,6 @@ def main():
 
     for exp_idx in range(exp_repeat):
         print('\nNo.%2d experiment ~~~' % exp_idx)
-
         train_loader = torch.utils.data.DataLoader(train_data, batch_size=batch_size, shuffle=True, drop_last=True)
         val_loader = torch.utils.data.DataLoader(val_data, batch_size=batch_size, shuffle=False, drop_last=True)
         test_loader = torch.utils.data.DataLoader(test_data, batch_size=batch_size, shuffle=False, drop_last=True)
@@ -258,7 +280,6 @@ def main():
                 print('Minimum val loss!!!')
                 torch.save(model.state_dict(), model_fp)
                 print('Save model: %s' % model_fp)
-
                 test_loss, predict_epoch, label_epoch, time_epoch = test(test_loader, model)
                 train_loss_, val_loss_ = train_loss, val_loss
                 rmse, mae, csi, pod, far = get_metric(predict_epoch, label_epoch)

@@ -18,13 +18,25 @@ import arrow
 import pdb
 import pickle
 
-wind_u_fp = os.path.join(proj_dir, 'wind_u_10_grid.npy')
-wind_v_fp = os.path.join(proj_dir, 'wind_v_10_grid.npy')
-grid_dict_lat_fp = os.path.join(proj_dir, 'dict_wind_grid_lat.pkl')
-grid_dict_lon_fp = os.path.join(proj_dir, 'dict_wind_grid_lon.pkl')
-frp_dict_fp = os.path.join(proj_dir, 'frp_dict.pkl')
-location_fp = os.path.join(proj_dir, 'latlon.csv')
-time_dict_fp = os.path.join(proj_dir, 'time_dict.pkl')
+wind_u_fp = os.path.join(proj_dir, 'data/wind_u_10_grid.npy')
+wind_v_fp = os.path.join(proj_dir, 'data/wind_v_10_grid.npy')
+grid_dict_lat_fp = os.path.join(proj_dir, 'data/dict_wind_grid_lat.pkl')
+grid_dict_lon_fp = os.path.join(proj_dir, 'data/dict_wind_grid_lon.pkl')
+lat_wind_fp = os.path.join(proj_dir,'data/lat_wind.npy')
+lon_wind_fp = os.path.join(proj_dir,'data/lon_wind.npy')
+
+frp_dict_fp = os.path.join(proj_dir, 'data/frp_dict.pkl')
+location_fp = os.path.join(proj_dir, 'data/latlon.csv')
+time_dict_fp = os.path.join(proj_dir, 'data/time_dict.pkl')
+
+pm25_input_fp = os.path.join(proj_dir,'data/input_exp1/pm25.npy') 
+feature_input_fp = os.path.join(proj_dir,'data/input_exp1/feature.npy') 
+time_input_fp = os.path.join(proj_dir,'data/input_exp1/time.npy') 
+
+test_feat_mean_fp = os.path.join(proj_dir,'data/test_feat_mean.npy') 
+test_feat_std_fp = os.path.join(proj_dir,'data/test_feat_std.npy') 
+test_pm25_mean_fp = os.path.join(proj_dir,'data/test_pm25_mean.npy') 
+test_pm25_std_fp = os.path.join(proj_dir,'data/test_pm25_std.npy') 
 
 class HazeData(data.Dataset):
 
@@ -53,35 +65,20 @@ class HazeData(data.Dataset):
         self.end_time = self._get_time(config['dataset'][dataset_num][end_time_str])
         self.data_start = self._get_time(config['dataset']['data_start'])
         self.data_end = self._get_time(config['dataset']['data_end'])
-        #if flag == "Test":
         self.sim_window_start = config['dataset'][dataset_num][start_time_sim_window]
         self.sim_window_end = config['dataset'][dataset_num][end_time_sim_window]
         self.window = self._get_window(self.sim_window_start, self.sim_window_end)
-        #print(self.window)
-        self.wu = np.load(wind_u_fp)
-        self.wv = np.load(wind_v_fp)
+        
+        self.wu, self.wv = np.load(wind_u_fp), np.load(wind_v_fp)
         self.time_dict = pickle.load( open(time_dict_fp, "rb" ) )
         self.frp_dict = pickle.load( open(frp_dict_fp, "rb" ) )
         self.grid_dict_lat = pickle.load( open(grid_dict_lat_fp, "rb" ) )
         self.grid_dict_lon = pickle.load( open(grid_dict_lon_fp, "rb" ) )
 
-        self.siteloc = pd.read_csv(location_fp)
-        self.siteloc = self.siteloc.drop("Unnamed: 0", axis=1)
-        self.siteloc = np.asarray(self.siteloc)
-
-        self.lat_grid = [41.78, 41.53, 41.28, 41.03, 40.78, 40.53, 40.28, 40.03, 39.78, 39.53,
-               39.28, 39.03, 38.78, 38.53, 38.28, 38.03, 37.78, 37.53, 37.28, 37.03,
-               36.78, 36.53, 36.28, 36.03, 35.78, 35.53, 35.28, 35.03, 34.78, 34.53,
-               34.28, 34.03, 33.78, 33.53, 33.28, 33.03, 32.78, 32.53]
-        self.lon_grid = [-124.41, -124.16, -123.91, -123.66, -123.41, -123.16, -122.91, -122.66,
-               -122.41, -122.16, -121.91, -121.66, -121.41, -121.16, -120.91, -120.66,
-                         -120.41, -120.16, -119.91, -119.66, -119.41, -119.16, -118.91, -118.66,
-               -118.41, -118.16, -117.91, -117.66, -117.41, -117.16, -116.91, -116.66,
-               -116.41, -116.16, -115.91, -115.66, -115.41, -115.16, -114.91, -114.66,
-               -114.41, -114.16]
+        self.siteloc = np.asarray( pd.read_csv(location_fp).drop("Unnamed: 0", axis=1) )
+        self.lat_grid, self.lon_grid = np.load(lat_wind_fp), np.load(lon_wind_fp)
 
         self.knowair_fp = file_dir['knowair_fp']
-        print(self.knowair_fp)
         self.graph = graph
         
         self._load_npy()
@@ -89,22 +86,22 @@ class HazeData(data.Dataset):
         self._process_time()
         self._process_feature()
         
-        # if loading the following the lines, can comment out lines 87-90 and 100-102
-        #self.pm25 = np.load("inputs/pm25.npy") 
-        #self.feature = np.load("inputs/feature.npy") 
-        #self.time_arr = np.load("inputs/time.npy") 
+        self.pm25, self.feature, self.time_arr = np.load(pm25_input_fp), np.load(feature_input_fp), np.load(time_input_fp) 
         
         self._calc_mean_std()
         seq_len = hist_len + pred_len
 
+        # uncomment if not loading the saved inputs
+        '''
         self._add_time_dim(seq_len)
         self._replace_pm25()
         self._recalculate_frp()
         self.feature = np.float32(self.feature)
         self.pm25 = np.float32(self.pm25)
-        np.save("inputs/feature.npy",self.feature)
-        np.save("inputs/pm25.npy.npy",self.pm25)
-        np.save("inputs/time.npy",self.time_arr)
+        np.save(os.path.join(proj_dir, 'data/input_exp1/feature.npy'), self.feature)
+        np.save(os.path.join(proj_dir, 'data/input_exp1/pm25.npy'), self.pm25)
+        np.save(os.path.join(proj_dir, 'data/input_exp1/time.npy'), self.time)        
+        '''
         
         self._norm(flag)
         self.feature = np.float32(self.feature)
@@ -113,8 +110,7 @@ class HazeData(data.Dataset):
     def _replace_pm25(self):
         for i in range(self.pm25.shape[0]):
             for w in range(self.feature.shape[1]):
-                 timeind = self.time_dict[self.window[w]] # pm25 value of simulation window
-                 #pdb.set_trace()
+                 timeind = self.time_dict[self.window[w]] # pm2.5 value of simulation window
                  self.pm25[i, w, :, 0] = self.knowair[timeind, :, -1]
 
     def _recalculate_frp(self):
@@ -125,13 +121,10 @@ class HazeData(data.Dataset):
                 if self.window[w][:10] not in self.frp_dict.keys():
                     continue
                 for j in range(len(self.siteloc[0])): # loop over locations
-                    latsite = self.siteloc[0][j]
-                    lonsite = self.siteloc[1][j]
+                    latsite, lonsite = self.siteloc[0][j], self.siteloc[1][j]
                     
                     for fire in self.frp_dict[self.window[w][:10]]: # loop over all fires in the simulation window 
-                        latf = fire[0]
-                        lonf = fire[1]
-                        frp = fire[2]
+                        latf, lonf, frp = fire[0], fire[1], fire[2]
 
                         timeind = self.time_dict[str(datetime.fromtimestamp(self.time_arr[i,w]))[0:13]] # wind values collected at actual time, not simulated
                         latind = self.grid_dict_lat[self._find_nearest(self.lat_grid, latf)]
@@ -164,12 +157,11 @@ class HazeData(data.Dataset):
 
     def _norm(self, flag):
         if flag == 'Test':
-            self.feature_mean = np.load("results_pres_fire/test_feat_mean.npy")
-            self.feature_std = np.load("results_pres_fire/test_feat_std.npy")
-            self.pm25_mean = np.load("results_pres_fire/test_pm25_mean.npy")
-            self.pm25_std = np.load("results_pres_fire/test_pm25_std.npy")
+            self.feature_mean = np.load(test_feat_mean_fp)
+            self.feature_std = np.load(test_feat_std_fp)
+            self.pm25_mean = np.load(test_pm25_mean_fp)
+            self.pm25_std = np.load(test_pm25_std_fp)
 
-        #print(self.feature_std, self.pm25_std)
         self.feature = (self.feature - self.feature_mean) / self.feature_std
         self.pm25 = (self.pm25 - self.pm25_mean) / self.pm25_std
 
@@ -188,9 +180,7 @@ class HazeData(data.Dataset):
         self.pm25 = _add_t(self.pm25, seq_len)
         self.feature = _add_t(self.feature, seq_len)
         self.time_arr = _add_t(self.time_arr, seq_len)
-        print(self.pm25.shape)
-        print(self.feature.shape)
-        print(self.time_arr.shape)
+
         keep = np.arange(0, self.pm25.shape[0]-1, 24)
         l = self.pm25.shape[0]
         for i in range(l-1, -1, -1):
@@ -198,9 +188,6 @@ class HazeData(data.Dataset):
                 self.pm25 = np.delete(self.pm25, i, 0)
                 self.feature = np.delete(self.feature,i,0)
                 self.time_arr = np.delete(self.time_arr, i,0)
-        print(self.pm25.shape)
-        print(self.feature.shape)
-        print(self.time_arr.shape)
 
     def _calc_mean_std(self):
         self.feature_mean = self.feature.mean(axis=(0,1))
@@ -247,7 +234,7 @@ class HazeData(data.Dataset):
     def _gen_time_arr(self):
         self.time_arrow = []
         self.time_arr = []
-        # determines time granularity (in this case, 1 hour)
+        # determines time granularity (1 hour)
         for time_arrow in arrow.Arrow.interval('hour', self.data_start, self.data_end.shift(hours=+1), 1):
             self.time_arrow.append(time_arrow[0])
             self.time_arr.append(time_arrow[0].timestamp)

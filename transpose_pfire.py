@@ -1,3 +1,8 @@
+import os
+import sys
+proj_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(proj_dir)
+
 import numpy as np
 import pandas as pd
 import math
@@ -7,6 +12,19 @@ import arrow
 from datetime import datetime, timedelta
 import geopy.distance
 import pickle
+
+wind_u_fp = os.path.join(proj_dir, 'data/wind_u_10_grid.npy')
+wind_v_fp = os.path.join(proj_dir, 'data/wind_v_10_grid.npy')
+lat_wind_fp = os.path.join(proj_dir,'data/lat_wind.npy')
+lon_wind_fp = os.path.join(proj_dir,'data/lon_wind.npy')
+
+frp_dict_fp = os.path.join(proj_dir, 'data/frp_dict.pkl')
+location_fp = os.path.join(proj_dir, 'data/latlon.csv')
+time_dict_fp = os.path.join(proj_dir, 'data/time_dict.pkl')
+dataset_fp = os.path.join(proj_dir, 'data/dataset_fire_wind_aligned.npy')
+alldates_fp = os.path.join(proj_dir, 'data/alltimes_pst.npy')
+grid_dict_lat_fp = os.path.join(proj_dir, 'data/dict_wind_grid_lat.pkl')
+grid_dict_lon_fp = os.path.join(proj_dir, 'data/dict_wind_grid_lon.pkl')
 
 def getdistance(lat1, lon1, lat2, lon2):
   coords_1 = (lat1, lon1)
@@ -84,7 +102,7 @@ def wind_uv_to_spd(U,V):
     return WSPD  
     
 def get_pfires_frp(caldorfire_lat, caldorfire_lon):
-    frp_dict = pickle.load( open("data/frp_dict.pkl", "rb" ) )
+    frp_dict = pickle.load( open(frp_dict_fp, "rb" ) )
     start_date = datetime(2018, 3, 21)
     end_date = datetime(2020, 12, 31)
     date_list = []
@@ -98,79 +116,48 @@ def get_pfires_frp(caldorfire_lat, caldorfire_lon):
     for i in date_list:
         if i in frp_dict.keys():
             for j in frp_dict[i]:
-                lat = j[0]
-                lon = j[1]
-                if getdistance(lat,lon, caldorfire_lat, caldorfire_lon) <= 25: #38.42631890642784, -120.44328186172089) < 10:
+                lat, lon = j[0], j[1]
+                if getdistance(lat,lon, caldorfire_lat, caldorfire_lon) <= 25:
                     if i[5:] not in frp_pfire.keys():
                         frp_pfire[i[5:]] = set()
                     frp_pfire[i[5:]].add((lat, lon, j[2], i))
-                    print(i, lat, lon, j[2])    
     return frp_pfire
 
 def main():
-	wu = np.load("data/wind_u_10_grid.npy")
-	wv = np.load("data/wind_v_10_grid.npy")
-	frp = pd.read_csv("data/raw_FRP_combined.csv")
-	time_dict = pickle.load( open("data/time_dict.pkl", "rb" ) )
+	wu, wv = np.load(wind_u_fp), np.load(wind_v_fp)
+	time_dict = pickle.load( open(time_dict_fp, "rb" ) )
+	lat_grid, lon_grid = np.load(lat_wind_fp), np.load(lon_wind_fp)
               
-	caldorfire_lat = 38.586
-	caldorfire_lon = -120.537833
-
-	lat_grid = [41.78, 41.53, 41.28, 41.03, 40.78, 40.53, 40.28, 40.03, 39.78, 39.53,
-	       39.28, 39.03, 38.78, 38.53, 38.28, 38.03, 37.78, 37.53, 37.28, 37.03,
-	       36.78, 36.53, 36.28, 36.03, 35.78, 35.53, 35.28, 35.03, 34.78, 34.53,
-	       34.28, 34.03, 33.78, 33.53, 33.28, 33.03, 32.78, 32.53]
-	lon_grid = [-124.41, -124.16, -123.91, -123.66, -123.41, -123.16, -122.91, -122.66,
-	       -122.41, -122.16, -121.91, -121.66, -121.41, -121.16, -120.91, -120.66,
-	       -120.41, -120.16, -119.91, -119.66, -119.41, -119.16, -118.91, -118.66,
-	       -118.41, -118.16, -117.91, -117.66, -117.41, -117.16, -116.91, -116.66,
-	       -116.41, -116.16, -115.91, -115.66, -115.41, -115.16, -114.91, -114.66,
-	       -114.41, -114.16]
-
-	griddiclat = {}
-	griddiclon = {}
-	for i in range(len(lat_grid)):
-	  griddiclat[lat_grid[i]] = i
-	for i in range(len(lon_grid)):
-	  griddiclon[lon_grid[i]] = i
+	caldorfire_lat, caldorfire_lon = 38.586, -120.537833
+ 
+	grid_dict_lat = pickle.load( open(grid_dict_lat_fp, "rb" ) )
+	grid_dict_lon = pickle.load( open(grid_dict_lon_fp, "rb" ) )
       
-	siteloc = pd.read_csv("data/latlon.csv")
-	siteloc = siteloc.drop("Unnamed: 0", axis=1)
-	siteloc = np.asarray(siteloc)
+	siteloc = np.asarray( pd.read_csv(location_fp).drop("Unnamed: 0", axis=1) )
 
 	alldates = np.arange(datetime(2017,1,1,0), datetime(2022,1,1, 0), timedelta(hours=1)).astype(datetime)
 	for i in range(len(alldates)):
-	  alldates[i] = alldates[i].strftime('%Y-%m-%d %H')
+		alldates[i] = alldates[i].strftime('%Y-%m-%d %H')
     
 	pfire_frp_dic = get_pfires_frp(caldorfire_lat, caldorfire_lon)
-	dataset = np.load("data/dataset_fire_wind_aligned.npy")
-	alldates = np.load("data/alltimes_pst.npy")
-    
-	start = 36959
-	end = 38687
-    
-	dataset = dataset[start:end, :, :]
-	alldates = alldates[start:end]
-	print(alldates[0], alldates[-1]) 
-	print(caldorfire_lat, caldorfire_lon)
+	start, end = time_dict["2021-03-21 00:00"], time_dict["2021-06-01 00:00"]
+ 
+	dataset = np.load(dataset_fp)[start:end, :, :]
+	alldates = np.load(alldates_fp)[start:end]
 
 	for i in range(dataset.shape[0]-7):
 		if alldates[i+7][5:10] not in pfire_frp_dic.keys():
 			continue
-		np.save("data/dataset_pfire_transpose_100x.npy", dataset)
             
 		for j in range(len(siteloc[0])): # loop over locations
-			latsite = siteloc[0][j]
-			lonsite = siteloc[1][j]
+			latsite, lonsite = siteloc[0][j], siteloc[1][j]
 
 			for fire in pfire_frp_dic[alldates[i+7][5:10]]: # +7 to adjust ; frp_dict needs values in UTC, but values right now are in PST
-				latf = fire[0]
-				lonf = fire[1]
-				frp = fire[2]
+				latf, lonf, frp = fire[0], fire[1], fire[2]
 
 				timeind = time_dict[alldates[i][0:13]] # wind values collected at actual time, not simulated
-				latind = griddiclat[find_nearest(lat_grid, latf)]
-				lonind = griddiclon[find_nearest(lon_grid, lonf)]
+				latind = grid_dict_lat[find_nearest(lat_grid, latf)]
+				lonind = grid_dict_lon[find_nearest(lon_grid, lonf)]
 
 				firewindu = wu[timeind][latind][lonind] * units.meter / units.second
 				firewindv = wv[timeind][latind][lonind] * units.meter / units.second
@@ -199,12 +186,8 @@ def main():
 							dataset[i,j,12] += frp*weight1*weight2*weight3*scalefactor # FRP 500KM
 							dataset[i,j,13] += 1 # Number of fires within 500KM
 	
-
-	print(start, end)
 	dataset  = dataset[0:-7, :, :]
-	np.save("data/dataset_pfire_transpose_100x.npy", dataset)
-      
-	print("DONE")
+	np.save(os.path.join(proj_dir, 'data/dataset_pfire_transpose_100x.npy'), dataset)
 
 if __name__ == '__main__':
     main()

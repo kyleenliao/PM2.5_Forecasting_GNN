@@ -45,19 +45,8 @@ class HazeData(data.Dataset):
         self._calc_mean_std()
         seq_len = hist_len + pred_len
         self._add_time_dim(seq_len)                 
-        if flag == 'Train':
-            self._repeat()
         self._norm()
         self._dictionary()
-
-    def _repeat(self):
-        for i in range(self.pm25.shape[0]):
-            if np.max(self.pm25[i,:, :])/100 >= 1:
-                #for j in range( 1 * int(np.max(self.pm25[i,:, :]) / 100) ):
-                for j in range( (int(np.max(self.pm25[i,:, :]) / 100) **2) ):
-                    self.pm25 = np.concatenate((self.pm25, self.pm25[i,:, :].reshape(1, self.pm25.shape[1], self.pm25.shape[2])), axis = 0)
-                    self.feature = np.concatenate((self.feature, self.feature[i,:, :].reshape(1, self.feature.shape[1], self.feature.shape[2])), axis = 0)
-                    self.time_arr = np.append(self.time_arr, self.time_arr[i])
 
     def _dictionary(self):
         self.time_index = {}
@@ -154,7 +143,3 @@ if __name__ == '__main__':
     train_data = HazeData(graph, flag='Train')
     val_data = HazeData(graph, flag='Val')
     test_data = HazeData(graph, flag='Test')
-
-    print(len(train_data))
-    print(len(val_data))
-    print(len(test_data))

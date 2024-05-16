@@ -9,11 +9,11 @@ experiments:
                'surface_pressure',
                'u_component_of_wind+950',
                'v_component_of_wind+950',
-               'frp_25km_idw',
-               'frp_50km_idw',
-               'frp_100km_idw',
-               'frp_500km_idw',
-               'numfires',
+               #'frp_25km_idw',
+               #'frp_50km_idw',
+               #'frp_100km_idw',
+               #'frp_500km_idw',
+               #'numfires',
                #'interp_flag',
                'julian_date',
                'time_of_day',]
@@ -29,7 +29,7 @@ experiments:
 #  model: PM25_GNN_nosub
 
 train:
-  batch_size: 16
+  batch_size: 1
   epochs: 50
   exp_repeat: 10
   hist_len: 240
@@ -75,6 +75,4 @@ dataset:
     val_start: [[2020, 1, 1], GMT]
     val_end: [[2020, 12, 31], GMT]
     test_start: [[2021, 1, 1], GMT]
-    test_end: [[2021, 5, 31], GMT]
-    sim_window_start: [[2021, 1, 3], GMT] #window length must be equal to histlen + predlen
-    sim_window_end: [[2021, 1, 15], GMT]  #non-inclusive
+    test_end: [[2021, 12, 31], GMT]
