@@ -2,7 +2,7 @@
 
 Graph Neural Network (GNN) model from PM2.5-GNN: A Domain Knowledge Enhanced Graph Neural Network For PM2.5 Forecasting: https://github.com/shuowang-ai/PM2.5-GNN/tree/7aacc6b6b9562ad2a9dad6197e6c4d73607ebdf2
 
-This repository includes the code used to perform two experiments which apply the GNN model to determine the optimal month to conduct prescribed fires, and quantify the potential air quality trade-offs involved in conducting more prescribed fires outside the fire season.
+This repository includes the code used to train a model to predict the hourly PM2.5 in California, predict the ambient PM2.5 pollution, and predict the PM2.5 during simulated prescribed burn events. For the simulated prescribed burns, two expimerents were performed, with the first applying the GNN model to determine the optimal month to conduct prescribed fires, and the second quantify the potential air quality trade-offs involved in conducting more prescribed fires outside the fire season.
 
 
 ## Dataset
@@ -21,8 +21,9 @@ pip install -r reqs.txt
 ```
 
 ## Set-up and Run
-**Train Model:**
-open 'config.yaml'
+### Predict Hourly PM2.5 
+
+open `config.yaml`
 
 - The following metero variables are used to train the model from the paper
 
@@ -66,35 +67,37 @@ filepath:
 #  model: PM25_GNN_nosub
 ```
 
-run 'train.py'
+run `train.py`
 ```bash
 python train.py
 ```
 
-**Ambient Predictions:**
-open 'util.py'
+### Predict Ambient PM2.5
 
-- Uncomment the correct line with 'config_exp1.yaml'
+open `util.py`
+
+- Uncomment the correct line with `config_exp1.yaml`
 ```python
 #conf_fp = os.path.join(proj_dir, 'config.yaml')
 conf_fp = os.path.join(proj_dir, 'config_ambient.yaml')
 ```
 
-run 'train_ambient.py'
+run `train_ambient.py`
 ```bash
 python train_ambient.py
 ```
 
-**Experiment 1:**
-open 'util.py'
+### PM2.5 Predictions during Simulated Prescribed Burn: Experiment 1
 
-- Uncomment the correct line with 'config_exp1.yaml'
+open `util.py`
+
+- Uncomment the correct line with
 ```python
 #conf_fp = os.path.join(proj_dir, 'config.yaml')
 conf_fp = os.path.join(proj_dir, 'config_exp1.yaml')
 ```
 
-open 'simulate.py'
+open `simulate.py`
 
 - Uncomment the following lines:
 
@@ -111,13 +114,14 @@ test_loss, predict_epoch, label_epoch, time_epoch = test(test_loader, model)
 #test_loss, predict_epoch, label_epoch, time_epoch = test_data_saving(test_loader, model)
 ```
 
-run 'simulate.py':
+run `simulate.py`:
 ```bash
 python simulate.py
 ```
 
-**Experiment 2:**
-open 'config.yaml'
+### PM2.5 Predictions during Simulated Prescribed Burn: Experiment 2
+
+open `config.yaml`
 
 - Change the dataset file path
 
@@ -128,9 +132,9 @@ filepath:
     results_dir: /data/pm25gnn/results
 ```
 
-- 'exp2_data_pre.py' is run to combine the files 'transpose_pfire.py' and 'exclude_fires.py' into the final dataset used for simulation (dataset_caldor_sim_100x_2018pm25.npy)
+- `exp2_data_pre.py` is run to combine the files created by `transpose_pfire.py` and `exclude_fires.py` to form the final dataset used for simulation (dataset_caldor_sim_100x_2018pm25.npy)
 
-open 'simulate.py'
+open `simulate.py`
 
 - Uncomment the following lines:
 
@@ -147,7 +151,7 @@ from dataset import HazeData # for Experiment 2
 test_loss, predict_epoch, label_epoch, time_epoch = test_data_saving(test_loader, model)
 ```
 
-run 'simulate.py':
+run `simulate.py`:
 ```bash
 python simulate.py
 ```
