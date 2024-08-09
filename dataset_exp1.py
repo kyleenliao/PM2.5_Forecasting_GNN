@@ -81,10 +81,13 @@ class HazeData(data.Dataset):
         self.knowair_fp = file_dir['knowair_fp']
         self.graph = graph
         
+        # uncomment if not loading the saved inputs
+        '''
         self._load_npy()
         self._gen_time_arr()
         self._process_time()
         self._process_feature()
+        '''
         
         self.pm25, self.feature, self.time_arr = np.load(pm25_input_fp), np.load(feature_input_fp), np.load(time_input_fp) 
         
