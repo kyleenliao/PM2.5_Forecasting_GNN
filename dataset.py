@@ -40,8 +40,8 @@ class HazeData(data.Dataset):
         self._gen_time_arr()
         self._process_time()
         self._process_feature()
-        self.feature = np.float32(self.feature)
-        self.pm25 = np.float32(self.pm25)
+        self.feature, self.pm25 = np.float32(self.feature), np.float32(self.pm25)
+        #self.frp500 = np.float32(self.frp500) # uncomment for 'train_ambient.py'
         self._calc_mean_std()
         seq_len = hist_len + pred_len
         self._add_time_dim(seq_len)                 
@@ -105,6 +105,7 @@ class HazeData(data.Dataset):
         end_idx = self._get_idx(self.end_time)
         self.pm25 = self.pm25[start_idx: end_idx+1, :]
         self.feature = self.feature[start_idx: end_idx+1, :]
+        #self.frp500 = self.frp500[start_idx: end_idx+1, :] # uncomment for 'train_ambient.py'
         self.time_arr = self.time_arr[start_idx: end_idx+1]
         self.time_arrow = self.time_arrow[start_idx: end_idx + 1]
 
@@ -121,6 +122,7 @@ class HazeData(data.Dataset):
         self.knowair = np.load(self.knowair_fp)
         self.feature = self.knowair[:,:,:-1]
         self.pm25 = self.knowair[:,:,-1:]
+        #self.frp500 = self.knowair[:,:,12] # uncomment for 'train_ambient.py'
 
     def _get_idx(self, t):
         t0 = self.data_start

@@ -4,9 +4,9 @@ proj_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(proj_dir)
 from util import config, file_dir
 
-from graph_pres_fires import Graph
+from graph import Graph
 import pdb
-from dataset_pres_fires import HazeData
+from dataset import HazeData
 
 from model.MLP import MLP
 from model.LSTM import LSTM
