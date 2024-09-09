@@ -1,9 +1,9 @@
-# Prescribed_Fire_PM2.5_Simulation
+# PM2.5_Forecasting_GNN
+Simulating the Air Quality Impact of Prescribed Fires Using Graph Neural Network-Based PM2.5 Forecasts
 
-Graph Neural Network (GNN) model from PM2.5-GNN: A Domain Knowledge Enhanced Graph Neural Network For PM2.5 Forecasting: https://github.com/shuowang-ai/PM2.5-GNN/tree/7aacc6b6b9562ad2a9dad6197e6c4d73607ebdf2
+This repository includes the code used to train the PM2.5-GNN model from Wang et al. (2020) to predict the hourly PM2.5 in California, estimate the ambient PM2.5 pollution, and predict the PM2.5 during simulated prescribed burn events. For the simulated prescribed burns, two expimerents were performed, with the first applying the PM2.5-GNN model to determine the optimal month to conduct prescribed fires, and the second quantify the potential air quality trade-offs involved in conducting more prescribed fires outside the fire season. 
 
-This repository includes the code used to train a model to predict the hourly PM2.5 in California, predict the ambient PM2.5 pollution, and predict the PM2.5 during simulated prescribed burn events. For the simulated prescribed burns, two expimerents were performed, with the first applying the GNN model to determine the optimal month to conduct prescribed fires, and the second quantify the potential air quality trade-offs involved in conducting more prescribed fires outside the fire season.
-
+Wang, S., Li, Y., Zhang, J. et al. (2020). PM2.5-GNN. Proceedings of the 28th International Conference on Advances in Geographic Information Systems. https://doi.org/10.1145/3397536.3422208
 
 ## Dataset
 
